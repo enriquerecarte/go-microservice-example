@@ -1,0 +1,87 @@
+{
+  "provider" : { "name" : "paymentapi"  },
+  "consumer" : { "name" : "bacsgateway"  },
+  "interactions" : [
+    {
+      "description" : "Outbound payment validation success result",
+      "providerStates": [
+        {
+          "name": "User has permission to create submission validations",
+          "params": {
+            "create_approve": "PaymentSubmissionValidation",
+            "edit_approve": "PaymentSubmission",
+            "organisation_id": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "user_id": "bae3612f-358e-4152-ab9e-e33bf483e9a4"
+          }
+        },
+        {
+          "name": "Submission validation is not pending approval"
+        },
+        {
+          "name": "A payment submission exists",
+          "params": {
+            "organisationId": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "paymentId": "6967c3b1-530e-4bd9-b8b1-4815986f7d1a",
+            "submissionId": "2b850d81-b44d-4778-9d92-9e0ad9b7a0cf"
+          }
+        }
+      ],
+      "request" : {
+        "method" : "POST",
+        "path" : "/v1/payments/6967c3b1-530e-4bd9-b8b1-4815986f7d1a/submissions/2b850d81-b44d-4778-9d92-9e0ad9b7a0cf/validations",
+        "headers": {
+          "X-consumer-custom-id": "47dbaa23-9ce4-4b58-9293-3aecf08c79a1",
+          "Content-Type": "application/json; charset=utf-8",
+          "Accept": "application/json"
+        },
+        "body" : {
+          "data": {
+            "id": "367e5432-5a6f-4bb0-8c1d-42f0d20aa0c5",
+            "organisation_id": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "attributes": {
+              "source": "bacs_gateway",
+              "status": "passed"
+            }
+          }
+        },
+        "matchingRules" : {
+          "$.path": {
+            "regex": "\/v1\/payments\/[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}\/submissions\/[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}\/validations"
+          },
+          "$.body.data.id": {
+            "regex": "[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}"
+          },
+          "$.body.data.organisation_id": {
+            "regex": "[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}"
+          }
+        }
+      },
+      "response" : {
+        "status" : 201,
+        "headers" : {
+          "Content-Type" : "application/json; charset=UTF-8"
+        },
+        "body" : {
+          "data":{
+            "id":"367e5432-5a6f-4bb0-8c1d-42f0d20aa0c5",
+            "version":0,
+            "organisation_id":"743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "type":"payment_submission_validations",
+            "attributes":{
+              "source":"bacs_gateway",
+              "status":"passed"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metadata" : {
+    "pact-specification" : {
+      "version" : "3.0.0"
+    },
+    "pact-jvm" : {
+      "version" : "3.0.0"
+    }
+  }
+}

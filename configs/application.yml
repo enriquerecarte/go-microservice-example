@@ -1,0 +1,19 @@
+application.name: bacsgateway
+
+db:
+  host: "localhost"
+  port: 5432
+  user: "bacsgateway"
+  password: "bacsgatewaypwd"
+  database: "bacsgateway"
+  migrations:
+    location: init/migrations
+
+vault:
+  address: http://localhost:8200
+  token: 'dev-token'
+server:
+  port: 8118
+
+logging:
+  level: INFO

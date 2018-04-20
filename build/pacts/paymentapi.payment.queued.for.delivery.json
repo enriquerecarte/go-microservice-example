@@ -1,0 +1,80 @@
+{
+  "provider" : { "name" : "paymentapi"  },
+  "consumer" : { "name" : "bacsgateway"  },
+  "interactions" : [
+    {
+      "description" : "Payment submission is queued for delivery",
+      "providerStates": [
+        { "name": "User has permission to patch payment submissions",
+          "params": {
+            "edit_approve": "PaymentSubmission",
+            "organisation_id": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "user_id": "bae3612f-358e-4152-ab9e-e33bf483e9a4"
+          }
+        },
+        { "name": "A payment submission exists",
+          "params": {
+            "paymentId": "3a3b1dd8-d09d-4f0e-b845-d87cda200a12",
+            "submissionId": "30bcf04f-c86f-4911-b427-cdbda55079c3",
+            "organisationId": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb"
+          }
+        }
+      ],
+      "request" : {
+        "method" : "PATCH",
+        "path" : "/v1/payments/3a3b1dd8-d09d-4f0e-b845-d87cda200a12/submissions/30bcf04f-c86f-4911-b427-cdbda55079c3",
+        "headers": {
+          "X-consumer-custom-id": "47dbaa23-9ce4-4b58-9293-3aecf08c79a1",
+          "Content-Type": "application/json; charset=utf-8",
+          "Accept": "application/json"
+        },
+        "body" : {
+          "data":{
+            "id":"30bcf04f-c86f-4911-b427-cdbda55079c3",
+            "version":1,
+            "organisation_id":"743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "type":"payment_submissions",
+            "attributes":{
+              "status":"queued_for_delivery"
+            }
+          }
+        },
+        "matchingRules" : {
+          "$.path": {
+            "regex": "\/v1\/payments\/[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}\/submissions\/[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}"
+          },
+          "$.body.data.id": {
+            "regex" : "[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}"
+          },
+          "$.body.data.organisation_id": {
+            "regex" : "[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}"
+          },
+          "$.body.data.version": {
+            "regex" : "[0-9]"
+          }
+        }
+      },
+      "response" : {
+        "status" : 202,
+        "headers" : {
+          "Content-Type" : "application/json; charset=UTF-8"
+        },
+        "body" : {
+          "data":{
+            "id":"30bcf04f-c86f-4911-b427-cdbda55079c3",
+            "version":2,
+            "organisation_id":"743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "attributes":{
+              "status":"queued_for_delivery"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metadata" : {
+    "pact-specification" : {
+      "version" : "3.0.0"
+    }
+  }
+}

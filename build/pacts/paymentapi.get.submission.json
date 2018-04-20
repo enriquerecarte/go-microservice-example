@@ -1,0 +1,79 @@
+{
+  "provider" : { "name" : "paymentapi"  },
+  "consumer" : { "name" : "bacsgateway"  },
+  "interactions" : [
+    {
+      "description" : "Get payment submission",
+      "providerStates": [
+        {
+          "name": "Payment submission exists",
+          "params": {
+            "organisationId": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "paymentId": "9add65d3-272a-43ab-9693-27244c3b433d",
+            "submissionId": "a3f7b511-29ea-4e90-9753-a6afd757844f"
+          }
+        },
+        {
+          "name": "User has permission to read submission",
+          "params": {
+            "read": "PaymentSubmission",
+            "organisation_id": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "user_id": "bae3612f-358e-4152-ab9e-e33bf483e9a4"
+          }
+        }
+      ],
+      "request" : {
+        "method" : "GET",
+        "path" : "/v1/payments/9add65d3-272a-43ab-9693-27244c3b433d/submissions/a3f7b511-29ea-4e90-9753-a6afd757844f",
+        "headers": {
+          "X-consumer-custom-id": "47dbaa23-9ce4-4b58-9293-3aecf08c79a1",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "matchingRules" : {
+          "$.path": {
+            "regex": "\/v1\/payments\/[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}\/submissions\/[0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}"
+          }
+        }
+      },
+      "response" : {
+        "status" : 200,
+        "headers" : {
+          "Content-Type" : "application/json; charset=UTF-8"
+        },
+        "body" : {
+          "data": {
+            "type": "payment_submissions",
+            "id": "a3f7b511-29ea-4e90-9753-a6afd757844f",
+            "version": 1,
+            "organisation_id": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
+            "attributes": {
+              "status": "queued_for_delivery",
+              "submission_datetime": "2017-10-13T11:34:58.166Z"
+            },
+            "relationships": {
+              "payment": {
+                "data": [
+                  {
+                    "type": "payments",
+                    "id": "9add65d3-272a-43ab-9693-27244c3b433d"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "matchingRules" : {
+          "$.body.data.attributes.submission_datetime": {
+            "regex": "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z"
+          }
+        }
+      }
+    }
+  ],
+  "metadata" : {
+    "pact-specification" : {
+      "version" : "3.0.0"
+    }
+  }
+}
