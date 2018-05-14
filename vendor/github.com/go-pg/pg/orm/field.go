@@ -19,7 +19,6 @@ type Field struct {
 	Type reflect.Type
 
 	GoName   string  // struct field name, e.g. Id
-	GoName_  string  // underscored struct field name, e.g. id
 	SQLName  string  // SQL name, .e.g. id
 	Column   types.Q // escaped SQL name, e.g. "id"
 	SQLType  string
@@ -71,7 +70,7 @@ func (f *Field) IsZero(strct reflect.Value) bool {
 }
 
 func (f *Field) OmitZero(strct reflect.Value) bool {
-	return !f.HasFlag(NotNullFlag) && f.isZero(f.Value(strct))
+	return (f.Default != "" || !f.HasFlag(NotNullFlag)) && f.isZero(f.Value(strct))
 }
 
 func (f *Field) AppendValue(b []byte, strct reflect.Value, quote int) []byte {

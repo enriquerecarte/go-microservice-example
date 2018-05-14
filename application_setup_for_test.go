@@ -9,7 +9,7 @@ import (
 	"testing"
 	. "github.com/enriquerecarte/microservices-example/test/stage"
 	"fmt"
-	. "github.com/enriquerecarte/go-bdd"
+	. "github.com/enriquerecarte/microservices-example/pkg/go-bdd"
 )
 
 func TestMain(m *testing.M) {

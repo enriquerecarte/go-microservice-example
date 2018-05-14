@@ -50,7 +50,7 @@ func StartDockerCompose(composeFile string, projectName string, portsToFind []st
 }
 
 func StopDockerCompose() {
-	err := runningProject.Stop(runningContext, 1)
+	err := runningProject.Stop(runningContext, 10)
 	if err != nil {
 		panic(err)
 	}

@@ -18,6 +18,11 @@ type withQuery struct {
 	query *Query
 }
 
+type joinQuery struct {
+	join *queryParamsAppender
+	on   []*condAppender
+}
+
 type Query struct {
 	db        DB
 	stickyErr error
@@ -32,7 +37,7 @@ type Query struct {
 	values     map[string]*queryParamsAppender
 	where      []sepFormatAppender
 	updWhere   []sepFormatAppender
-	joins      []FormatAppender
+	joins      []*joinQuery
 	group      []FormatAppender
 	having     []*queryParamsAppender
 	order      []FormatAppender
@@ -213,8 +218,15 @@ func (q *Query) _getFields(omitPKs bool) ([]*Field, error) {
 	return columns, nil
 }
 
-func (q *Query) Relation(name string, apply func(*Query) (*Query, error)) *Query {
-	if _, j := q.model.Join(name, apply); j == nil {
+func (q *Query) Relation(name string, apply ...func(*Query) (*Query, error)) *Query {
+	var fn func(*Query) (*Query, error)
+	if len(apply) == 1 {
+		fn = apply[0]
+	} else if len(apply) > 1 {
+		panic("only one apply function is supported")
+	}
+	_, join := q.model.Join(name, fn)
+	if join == nil {
 		return q.err(fmt.Errorf(
 			"model=%s does not have relation=%s",
 			q.model.Table().Type.Name(), name,
@@ -236,19 +248,19 @@ func (q *Query) Value(column string, value string, params ...interface{}) *Query
 	return q
 }
 
-func (q *Query) Where(where string, params ...interface{}) *Query {
-	q.addWhere(&whereAppender{
-		sep:    "AND",
-		where:  where,
+func (q *Query) Where(condition string, params ...interface{}) *Query {
+	q.addWhere(&condAppender{
+		sep:    " AND ",
+		cond:   condition,
 		params: params,
 	})
 	return q
 }
 
-func (q *Query) WhereOr(where string, params ...interface{}) *Query {
-	q.addWhere(&whereAppender{
-		sep:    "OR",
-		where:  where,
+func (q *Query) WhereOr(condition string, params ...interface{}) *Query {
+	q.addWhere(&condAppender{
+		sep:    " OR ",
+		cond:   condition,
 		params: params,
 	})
 	return q
@@ -266,7 +278,7 @@ func (q *Query) WhereOr(where string, params ...interface{}) *Query {
 //
 //    WHERE TRUE AND (FALSE OR TRUE)
 func (q *Query) WhereGroup(fn func(*Query) (*Query, error)) *Query {
-	return q.whereGroup("AND", fn)
+	return q.whereGroup(" AND ", fn)
 }
 
 // WhereOrGroup encloses conditions added in the function in parentheses.
@@ -281,7 +293,7 @@ func (q *Query) WhereGroup(fn func(*Query) (*Query, error)) *Query {
 //
 //    WHERE TRUE OR (FALSE AND TRUE)
 func (q *Query) WhereOrGroup(fn func(*Query) (*Query, error)) *Query {
-	return q.whereGroup("OR", fn)
+	return q.whereGroup(" OR ", fn)
 }
 
 func (q *Query) whereGroup(conj string, fn func(*Query) (*Query, error)) *Query {
@@ -294,9 +306,9 @@ func (q *Query) whereGroup(conj string, fn func(*Query) (*Query, error)) *Query 
 		return q
 	}
 
-	f := whereGroupAppender{
-		sep:   conj,
-		where: newq.where,
+	f := &condGroupAppender{
+		sep:  conj,
+		cond: newq.where,
 	}
 	newq.where = saved
 	newq.addWhere(f)
@@ -319,9 +331,17 @@ func (q *Query) addWhere(f sepFormatAppender) {
 	}
 }
 
+// WherePK adds condition based on the model primary key.
+// Typically it is the same as:
+//
+//    Where("id = ?id")
 func (q *Query) WherePK() *Query {
-	if q.model == nil {
-		q.stickyErr = errors.New("pg: Model is nil")
+	if !q.hasModel() {
+		q.stickyErr = errors.New("pg: Model(nil)")
+		return q
+	}
+	if q.model.Kind() == reflect.Slice {
+		q.stickyErr = errors.New("pg: WherePK requires struct Model")
 		return q
 	}
 	if err := q.model.Table().checkPKs(); err != nil {
@@ -333,7 +353,30 @@ func (q *Query) WherePK() *Query {
 }
 
 func (q *Query) Join(join string, params ...interface{}) *Query {
-	q.joins = append(q.joins, &queryParamsAppender{join, params})
+	q.joins = append(q.joins, &joinQuery{
+		join: &queryParamsAppender{join, params},
+	})
+	return q
+}
+
+// JoinOn appends join condition to the last join.
+func (q *Query) JoinOn(condition string, params ...interface{}) *Query {
+	j := q.joins[len(q.joins)-1]
+	j.on = append(j.on, &condAppender{
+		sep:    " AND ",
+		cond:   condition,
+		params: params,
+	})
+	return q
+}
+
+func (q *Query) JoinOnOr(condition string, params ...interface{}) *Query {
+	j := q.joins[len(q.joins)-1]
+	j.on = append(j.on, &condAppender{
+		sep:    " OR ",
+		cond:   condition,
+		params: params,
+	})
 	return q
 }
 
@@ -399,7 +442,7 @@ func (q *Query) OnConflict(s string, params ...interface{}) *Query {
 
 func (q *Query) onConflictDoUpdate() bool {
 	return q.onConflict != nil &&
-		strings.HasSuffix(q.onConflict.query, "DO UPDATE")
+		strings.HasSuffix(internal.UpperString(q.onConflict.query), "DO UPDATE")
 }
 
 func (q *Query) Returning(s string, params ...interface{}) *Query {
@@ -454,7 +497,7 @@ func (q *Query) First() error {
 		return err
 	}
 
-	b := columns(nil, q.model.Table().Alias, q.model.Table().PKs)
+	b := appendColumns(nil, q.model.Table().Alias, q.model.Table().PKs)
 	return q.OrderExpr(internal.BytesToString(b)).Limit(1).Select()
 }
 
@@ -468,7 +511,8 @@ func (q *Query) Last() error {
 		return err
 	}
 
-	b := columns(nil, q.model.Table().Alias, q.model.Table().PKs)
+	// TODO: fix for multi columns
+	b := appendColumns(nil, q.model.Table().Alias, q.model.Table().PKs)
 	b = append(b, " DESC"...)
 	return q.OrderExpr(internal.BytesToString(b)).Limit(1).Select()
 }
@@ -598,7 +642,8 @@ func (q *Query) Insert(values ...interface{}) (Result, error) {
 	}
 
 	if q.model != nil && q.model.Table().HasFlag(BeforeInsertHookFlag) {
-		if err := q.model.BeforeInsert(q.db); err != nil {
+		err = q.model.BeforeInsert(q.db)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -609,7 +654,8 @@ func (q *Query) Insert(values ...interface{}) (Result, error) {
 	}
 
 	if q.model != nil {
-		if err := q.model.AfterInsert(q.db); err != nil {
+		err = q.model.AfterInsert(q.db)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -618,7 +664,8 @@ func (q *Query) Insert(values ...interface{}) (Result, error) {
 }
 
 // SelectOrInsert selects the model inserting one if it does not exist.
-func (q *Query) SelectOrInsert(values ...interface{}) (inserted bool, err error) {
+// It returns true when model was inserted.
+func (q *Query) SelectOrInsert(values ...interface{}) (inserted bool, _ error) {
 	if q.stickyErr != nil {
 		return false, q.stickyErr
 	}
@@ -662,7 +709,7 @@ func (q *Query) SelectOrInsert(values ...interface{}) (inserted bool, err error)
 		}
 	}
 
-	err = fmt.Errorf(
+	err := fmt.Errorf(
 		"pg: SelectOrInsert: select returns no rows (insert fails with err=%q)",
 		insertErr,
 	)
@@ -690,7 +737,8 @@ func (q *Query) update(scan []interface{}, omitZero bool) (Result, error) {
 	}
 
 	if q.model != nil {
-		if err := q.model.BeforeUpdate(q.db); err != nil {
+		err = q.model.BeforeUpdate(q.db)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -701,7 +749,8 @@ func (q *Query) update(scan []interface{}, omitZero bool) (Result, error) {
 	}
 
 	if q.model != nil {
-		if err := q.model.AfterUpdate(q.db); err != nil {
+		err = q.model.AfterUpdate(q.db)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -721,7 +770,8 @@ func (q *Query) Delete(values ...interface{}) (Result, error) {
 	}
 
 	if q.model != nil {
-		if err := q.model.BeforeDelete(q.db); err != nil {
+		err = q.model.BeforeDelete(q.db)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -732,7 +782,8 @@ func (q *Query) Delete(values ...interface{}) (Result, error) {
 	}
 
 	if q.model != nil {
-		if err := q.model.AfterDelete(q.db); err != nil {
+		err = q.model.AfterDelete(q.db)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -898,15 +949,11 @@ func (q *Query) mustAppendWhere(b []byte) ([]byte, error) {
 	}
 
 	if q.model == nil {
-		return nil, errors.New("pg: Model is nil")
+		return nil, errors.New("pg: Model(nil)")
 	}
-
-	if err := q.model.Table().checkPKs(); err != nil {
-		return nil, err
-	}
-
-	b = append(b, " WHERE "...)
-	return wherePKQuery{q}.AppendFormat(b, nil), nil
+	err := errors.New(
+		"pg: Update and Delete queries require Where clause (try WherePK)")
+	return nil, err
 }
 
 func (q *Query) appendWhere(b []byte) []byte {
@@ -918,12 +965,9 @@ func (q *Query) appendUpdWhere(b []byte) []byte {
 }
 
 func (q *Query) _appendWhere(b []byte, where []sepFormatAppender) []byte {
-	b = append(b, " WHERE "...)
 	for i, f := range where {
 		if i > 0 {
-			b = append(b, ' ')
 			b = f.AppendSep(b)
-			b = append(b, ' ')
 		}
 		b = f.AppendFormat(b, q)
 	}
@@ -973,6 +1017,13 @@ func (q *Query) appendWith(b []byte) ([]byte, error) {
 	return b, nil
 }
 
+func (q *Query) isSliceModel() bool {
+	if !q.hasModel() {
+		return false
+	}
+	return q.model.Kind() == reflect.Slice && q.model.Value().Len() > 0
+}
+
 //------------------------------------------------------------------------------
 
 type wherePKQuery struct {
@@ -980,17 +1031,13 @@ type wherePKQuery struct {
 }
 
 func (wherePKQuery) AppendSep(b []byte) []byte {
-	return append(b, "AND"...)
+	return append(b, " AND "...)
 }
 
 func (q wherePKQuery) AppendFormat(b []byte, f QueryFormatter) []byte {
 	table := q.model.Table()
 	value := q.model.Value()
-	if value.Kind() == reflect.Struct {
-		return appendColumnAndValue(b, value, table.Alias, table.PKs)
-	} else {
-		return appendColumnAndColumn(b, value, table.Alias, table.PKs)
-	}
+	return appendColumnAndValue(b, value, table.Alias, table.PKs)
 }
 
 func appendColumnAndValue(b []byte, v reflect.Value, alias types.Q, fields []*Field) []byte {
@@ -1007,16 +1054,45 @@ func appendColumnAndValue(b []byte, v reflect.Value, alias types.Q, fields []*Fi
 	return b
 }
 
-func appendColumnAndColumn(b []byte, v reflect.Value, alias types.Q, fields []*Field) []byte {
-	for i, f := range fields {
-		if i > 0 {
-			b = append(b, " AND "...)
-		}
-		b = append(b, alias...)
-		b = append(b, '.')
-		b = append(b, f.Column...)
-		b = append(b, " = _data."...)
-		b = append(b, f.Column...)
+func appendColumnAndSliceValue(b []byte, slice reflect.Value, alias types.Q, fields []*Field) []byte {
+	if slice.Len() == 0 {
+		return append(b, "1 = 2"...)
 	}
+
+	if len(fields) > 1 {
+		b = append(b, '(')
+	}
+	b = appendColumns(b, alias, fields)
+	if len(fields) > 1 {
+		b = append(b, ')')
+	}
+
+	b = append(b, " IN ("...)
+
+	for i := 0; i < slice.Len(); i++ {
+		if i > 0 {
+			b = append(b, ", "...)
+		}
+
+		el := slice.Index(i)
+		if el.Kind() == reflect.Interface {
+			el = el.Elem()
+		}
+
+		if len(fields) > 1 {
+			b = append(b, '(')
+		}
+		for i, f := range fields {
+			if i > 0 {
+				b = append(b, ", "...)
+			}
+			b = f.AppendValue(b, el, 1)
+		}
+		if len(fields) > 1 {
+			b = append(b, ')')
+		}
+	}
+	b = append(b, ')')
+
 	return b
 }

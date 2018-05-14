@@ -38,6 +38,42 @@ func GetAll() []Association {
 	return associations
 }
 
+func GetByServiceUserNumber(serviceUserNumber string) []Association {
+	var associations = make([]Association, 0)
+
+	query := Association{
+		Record: AssociationRecord{
+			ServiceUserNumber: serviceUserNumber,
+		},
+	}
+
+	err := database.Connection().Select(&query)
+	if err != nil {
+		panic(err)
+	}
+
+	associations = append(associations, query)
+
+	return associations
+}
+
+func GetByOrganisationId(organisationId uuid.UUID) []Association {
+	var associations = make([]Association, 0)
+
+	query := Association{
+		OrganisationId: organisationId,
+	}
+
+	err := database.Connection().Select(&query)
+	if err != nil {
+		panic(err)
+	}
+
+	associations = append(associations, query)
+
+	return associations
+}
+
 func Delete(associationId uuid.UUID) {
 	association := Association{
 		Id: associationId,

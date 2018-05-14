@@ -28,7 +28,7 @@ func The_Application_Is_Running(t *testing.T) {
 }
 
 func An_Association_For_Bacs_Is_Created(t *testing.T) {
-	organisationId, _ = uuid.NewV4()
+	organisationId = uuid.NewV4()
 	serviceUserNumber = "123456"
 	createAssociationCommand := association.CreateAssociationCommand{
 		OrganisationId:    organisationId,

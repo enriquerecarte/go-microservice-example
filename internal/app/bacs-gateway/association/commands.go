@@ -17,7 +17,7 @@ type DeleteAssociationCommand struct {
 
 func HandleCreateAssociationCommand(command CreateAssociationCommand) Association {
 	logrus.Info("HandleCreateAssociationCommand:", command)
-	id, _ := uuid.NewV4()
+	id := uuid.NewV4()
 	association := Association{
 		Id:             id,
 		OrganisationId: command.OrganisationId,

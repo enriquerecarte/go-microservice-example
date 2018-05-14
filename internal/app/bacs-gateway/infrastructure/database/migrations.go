@@ -13,6 +13,8 @@ func migrateDatabase(connectionString string) error {
 		Dir: configuration.Get("db.migrations.location"),
 	}
 
+	fmt.Println(migrations)
+
 	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
 	if err != nil {
 		panic(err)

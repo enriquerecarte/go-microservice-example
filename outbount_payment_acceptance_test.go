@@ -2,7 +2,7 @@ package microservices_example
 
 import (
 	"testing"
-	. "github.com/enriquerecarte/go-bdd"
+	. "github.com/enriquerecarte/microservices-example/pkg/go-bdd"
 	. "github.com/enriquerecarte/microservices-example/test/stage"
 )
 

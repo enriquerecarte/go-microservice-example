@@ -3,6 +3,7 @@ package association
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/satori/go.uuid"
+	"fmt"
 )
 
 func HandleCreateAssociation(c *gin.Context) {
@@ -15,7 +16,20 @@ func HandleCreateAssociation(c *gin.Context) {
 }
 
 func HandleGetAllAssociations(c *gin.Context) {
-	associations := GetAll()
+	var associations []Association
+
+	sun := c.Query("sun")
+	org := c.Query("org")
+	if sun != "" {
+		fmt.Println("Filtering out sun", sun)
+		associations = GetByServiceUserNumber(sun)
+	} else if org != "" {
+		fmt.Println("Filtering out org", org)
+		organisationId, _ := uuid.FromString(org)
+		associations = GetByOrganisationId(organisationId)
+	} else {
+		associations = GetAll()
+	}
 
 	c.JSON(200, associations)
 }
